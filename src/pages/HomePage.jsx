@@ -1,87 +1,119 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 export default function HomePage() {
   const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const [faces, setFaces] = useState([]);
-  const navigate = useNavigate(); // React Router hook
+  const [detectedName, setDetectedName] = useState("");
+  const [showNotification, setShowNotification] = useState(false);
+  const recognitionIntervalRef = useRef(null);
 
+  // Start webcam
   useEffect(() => {
-    // Start webcam
     navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
       if (videoRef.current) videoRef.current.srcObject = stream;
+      videoRef.current.play();
     });
   }, []);
 
+  // Recognition loop
   useEffect(() => {
-    const interval = setInterval(async () => {
+    recognitionIntervalRef.current = setInterval(async () => {
       if (!videoRef.current || videoRef.current.readyState !== 4) return;
 
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext("2d");
+      // Capture frame
+      const canvas = document.createElement("canvas");
       canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext("2d");
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-
       const imageData = canvas.toDataURL("image/jpeg");
 
       try {
         const res = await axios.post("http://localhost:5000/recognize", { image: imageData });
-        setFaces(res.data.faces);
+        const faces = res.data.faces;
 
-        ctx.lineWidth = 2;
-        ctx.font = "16px Arial";
-        ctx.textBaseline = "top";
+        if (faces.length > 0 && faces[0].name !== "Unknown") {
+          const name = faces[0].name;
 
-        res.data.faces.forEach(face => {
-          const [x, y, w, h] = face.bbox;
-          ctx.strokeStyle = "lime";
-          ctx.strokeRect(x, y, w, h);
-          ctx.fillStyle = "lime";
-          ctx.fillText(face.name, x, y - 20 < 0 ? y + 5 : y - 20);
-        });
+          // Pause video
+          videoRef.current.pause();
+
+          // Show notification
+          setDetectedName(name);
+          setShowNotification(true);
+
+          // Hide notification after 1s and resume
+          setTimeout(() => {
+            setShowNotification(false);
+            videoRef.current.play();
+          }, 1000);
+        }
 
       } catch (err) {
         console.log("Recognition error:", err);
       }
-
     }, 1000);
 
-    return () => clearInterval(interval);
+    return () => clearInterval(recognitionIntervalRef.current);
   }, []);
 
   return (
-    <div className="flex flex-col items-center bg-gray-900 text-white min-h-screen p-4">
-      <h1 className="text-3xl font-bold mb-4">Versalite</h1>
+    <div style={{
+      width: "100vw",
+      height: "100vh",
+      backgroundColor: "black",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      overflow: "hidden",
+      position: "relative"
+    }}>
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          display: "block", 
+        }}
+      />
 
-      {/* Video + Canvas */}
-      <div className="relative w-[350px] h-[250px] rounded-xl mb-4">
-        <video ref={videoRef} autoPlay playsInline className="absolute top-0 left-0 w-full h-full rounded-xl" />
-        <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full rounded-xl" />
-      </div>
+      {/* Notification */}
+      {showNotification && (
+        <div style={{
+          position: "absolute",
+          top: "20%",
+          left: "50%",
+          transform: "translateX(-50%)",
+          backgroundColor: "rgba(0,0,0,0.7)",
+          color: "lime",
+          padding: "20px 40px",
+          borderRadius: "12px",
+          fontSize: "2rem",
+          fontWeight: "bold",
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          animation: "fadeInOut 1s ease-in-out"
+        }}>
+          <span>{detectedName}</span>
+          <span>✔️</span>
+        </div>
+      )}
 
-      {/* Navigation Buttons */}
-      <div className="flex gap-4 mb-4">
-        <button
-          onClick={() => navigate("/enroll")}
-          className="bg-blue-600 px-4 py-2 rounded-lg"
-        >
-          Enroll
-        </button>
-        <button
-          onClick={() => navigate("/admin")}
-          className="bg-green-600 px-4 py-2 rounded-lg"
-        >
-          Admin
-        </button>
-      </div>
-
-      {/* Detected faces */}
-      {faces.map((f, i) => (
-        <p key={i}>{f.name} detected</p>
-      ))}
+      {/* Animation keyframes */}
+      <style>
+        {`
+          @keyframes fadeInOut {
+            0% { opacity: 0; transform: translate(-50%, -20px); }
+            10% { opacity: 1; transform: translate(-50%, 0); }
+            90% { opacity: 1; transform: translate(-50%, 0); }
+            100% { opacity: 0; transform: translate(-50%, -20px); }
+          }
+        `}
+      </style>
     </div>
   );
 }
