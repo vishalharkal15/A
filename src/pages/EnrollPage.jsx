@@ -1,28 +1,40 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import "./EnrollPage.css";
 
-export default function HomePage() {
+export default function EnrollPage() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const [step, setStep] = useState(0);
+  const [name, setName] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [email, setEmail] = useState("");
   const [faces, setFaces] = useState([]);
-  const navigate = useNavigate(); // React Router hook
+  const [error, setError] = useState("");
 
   useEffect(() => {
     // Start webcam
-    navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+    navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
       if (videoRef.current) videoRef.current.srcObject = stream;
     });
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(async () => {
-      if (!videoRef.current || videoRef.current.readyState !== 4) return;
+    let isProcessing = false;
 
+    const processFrame = async () => {
+      if (!videoRef.current || videoRef.current.readyState !== 4 || isProcessing) {
+        requestAnimationFrame(processFrame);
+        return;
+      }
+
+      isProcessing = true;
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
       canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
 
       const imageData = canvas.toDataURL("image/jpeg");
@@ -31,57 +43,137 @@ export default function HomePage() {
         const res = await axios.post("http://localhost:5000/recognize", { image: imageData });
         setFaces(res.data.faces);
 
-        ctx.lineWidth = 2;
-        ctx.font = "16px Arial";
+        ctx.lineWidth = 3;
+        ctx.font = "18px Arial";
         ctx.textBaseline = "top";
 
-        res.data.faces.forEach(face => {
+        res.data.faces.forEach((face, index) => {
           const [x, y, w, h] = face.bbox;
-          ctx.strokeStyle = "lime";
+          const color = `hsl(${(Date.now() / 10 + index * 60) % 360}, 100%, 50%)`;
+          ctx.strokeStyle = color;
           ctx.strokeRect(x, y, w, h);
-          ctx.fillStyle = "lime";
-          ctx.fillText(face.name, x, y - 20 < 0 ? y + 5 : y - 20);
+          ctx.fillStyle = "#fff";
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 10;
+          ctx.fillText(face.name, x, y - 22 < 0 ? y + 5 : y - 22);
         });
-
       } catch (err) {
         console.log("Recognition error:", err);
       }
 
-    }, 1000);
+      isProcessing = false;
+      requestAnimationFrame(processFrame);
+    };
 
-    return () => clearInterval(interval);
+    requestAnimationFrame(processFrame);
+
+    return () => {
+      isProcessing = true; // stop processing when component unmounts
+    };
   }, []);
 
+  const capturePhoto = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    setCapturedImage(canvas.toDataURL("image/jpeg"));
+    setStep(1);
+  };
+
+  const retakePhoto = () => {
+    setCapturedImage(null);
+    setStep(0);
+    setName("");
+    setMobile("");
+    setEmail("");
+    setError("");
+  };
+
+  const submitEnrollment = async () => {
+    try {
+      const res = await axios.post("http://localhost:5000/enroll", {
+        name,
+        mobile: mobile || null,
+        email: email || null,
+        image: capturedImage,
+      });
+
+      if (res.data.student_exists) {
+        setError(res.data.message);
+      } else {
+        alert(res.data.message);
+        retakePhoto();
+      }
+    } catch (err) {
+      console.log(err);
+      setError(err.response?.data?.error || "Enrollment failed");
+    }
+  };
+
   return (
-    <div className="flex flex-col items-center bg-gray-900 text-white min-h-screen p-4">
-      <h1 className="text-3xl font-bold mb-4">Versalite</h1>
+    <div className="enroll-container">
+      {!capturedImage && (
+        <>
+          <div className="feeds-wrapper">
+            <div className="camera-feed">
+              <video ref={videoRef} autoPlay playsInline className="camera-video" />
+              <canvas ref={canvasRef} className="camera-overlay-canvas" />
+              <p className="feed-label">Camera Feed</p>
+            </div>
 
-      {/* Video + Canvas */}
-      <div className="relative w-[350px] h-[250px] rounded-xl mb-4">
-        <video ref={videoRef} autoPlay playsInline className="absolute top-0 left-0 w-full h-full rounded-xl" />
-        <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full rounded-xl" />
-      </div>
+            <div className="camera-feed">
+              <canvas ref={canvasRef} className="camera-canvas" />
+              <p className="feed-label">Processed Feed</p>
+            </div>
+          </div>
 
-      {/* Navigation Buttons */}
-      <div className="flex gap-4 mb-4">
-        <button
-          onClick={() => navigate("/enroll")}
-          className="bg-blue-600 px-4 py-2 rounded-lg"
-        >
-          Enroll
-        </button>
-        <button
-          onClick={() => navigate("/admin")}
-          className="bg-green-600 px-4 py-2 rounded-lg"
-        >
-          Admin
-        </button>
-      </div>
+          <button className="capture-btn" onClick={capturePhoto}></button>
+        </>
+      )}
 
-      {/* Detected faces */}
-      {faces.map((f, i) => (
-        <p key={i}>{f.name} detected</p>
-      ))}
+      {capturedImage && step === 1 && (
+        <div className="capture-preview">
+          <img src={capturedImage} alt="captured" className="preview-image" />
+          <input
+            type="text"
+            placeholder="Enter Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="input-field"
+          />
+          <div className="btn-group">
+            <button className="btn retake" onClick={retakePhoto}>Retake</button>
+            <button className="btn next" onClick={() => setStep(2)} disabled={!name.trim()}>Next</button>
+          </div>
+        </div>
+      )}
+
+      {capturedImage && step === 2 && (
+        <div className="capture-preview">
+          <img src={capturedImage} alt="captured" className="preview-image" />
+          <input
+            type="text"
+            placeholder="Mobile (optional)"
+            value={mobile}
+            onChange={(e) => setMobile(e.target.value)}
+            className="input-field"
+          />
+          <input
+            type="email"
+            placeholder="Email (optional)"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="input-field"
+          />
+          {error && <p className="error-msg">{error}</p>}
+          <div className="btn-group">
+            <button className="btn retake" onClick={retakePhoto}>Retake</button>
+            <button className="btn confirm" onClick={submitEnrollment} disabled={!name.trim()}>Confirm</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
