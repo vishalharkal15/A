@@ -17,3 +17,4 @@ pillow==11.3.0
 imagesize==1.4.1
 numpy==2.2.6
 numpydoc==1.9.0
+gunicorn==23.0.0
