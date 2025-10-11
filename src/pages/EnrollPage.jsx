@@ -40,7 +40,7 @@ export default function EnrollPage() {
       const imageData = canvas.toDataURL("image/jpeg");
 
       try {
-        const res = await axios.post("http://localhost:5000/recognize", { image: imageData });
+        const res = await axios.post("https://10.68.222.139:5000/recognize", { image: imageData });
         setFaces(res.data.faces);
 
         ctx.lineWidth = 3;
@@ -93,7 +93,7 @@ export default function EnrollPage() {
 
   const submitEnrollment = async () => {
     try {
-      const res = await axios.post("http://localhost:5000/enroll", {
+      const res = await axios.post("https://10.68.222.139:5000/enroll", {
         name,
         mobile: mobile || null,
         email: email || null,
