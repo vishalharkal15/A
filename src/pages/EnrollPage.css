@@ -1,16 +1,17 @@
 .enroll-container {
   width: 100vw;
-  height: 100vh;
+  min-height: 100vh; /* Ensure the container can grow beyond 100vh */
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start; /* Start from the top */
   background: linear-gradient(135deg, #1a1a1a, #4b0082, #800080);
-  overflow: hidden;
+  overflow-y: auto; /* Allow vertical scrolling */
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   color: #fff;
   animation: bgGradient 15s ease infinite;
 }
+
 html, body {
   height: 100%;
   margin: 0;

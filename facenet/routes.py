@@ -152,6 +152,8 @@ def register_routes(app, db, Attendance, detector, embedder):
             today = date.today().strftime("%Y-%m-%d")
             current_time = datetime.now().strftime("%H:%M:%S")
 
+            THRESHOLD = 0.1
+
             for face in faces:
                 x, y, w, h = face["box"]
                 face_crop = image.crop((x, y, x + w, y + h))
@@ -165,6 +167,11 @@ def register_routes(app, db, Attendance, detector, embedder):
                     if dist < min_dist:
                         min_dist = dist
                         match_name = name
+
+                if min_dist > THRESHOLD:
+                    match_name = "Unknown"
+                
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] {match_name}: distance={min_dist:.3f}")
 
                 if match_name != "Unknown":
                     try:
