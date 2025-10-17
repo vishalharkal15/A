@@ -330,8 +330,8 @@ def register_routes(app, db, Attendance, detector, embedder):
             "outtime": r.outtime,
         }
         for r in records
-    ]
-    return jsonify({"records": data})
+        ]
+        return jsonify({"records": data})
 
     
 
