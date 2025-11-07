@@ -1,4 +1,9 @@
 import os
+
+# Suppress TensorFlow warnings about GPU/CUDA
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # 0=all, 1=INFO, 2=WARNING, 3=ERROR
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # Disable GPU usage
+
 from flask import Flask, send_from_directory
 from flask_cors import CORS
 from mtcnn import MTCNN
