@@ -12,7 +12,9 @@ export default function HomePage() {
   useEffect(() => {
     navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
       if (videoRef.current) videoRef.current.srcObject = stream;
-      videoRef.current.play();
+      videoRef.current.play().catch(e => {
+        if (e.name !== 'AbortError') console.error('Video play error:', e);
+      });
     });
   }, []);
 
@@ -39,7 +41,7 @@ export default function HomePage() {
       const imageData = canvas.toDataURL("image/jpeg");
 
       try {
-        const res = await axios.post("https://{Yout IP}:5000/recognize", { image: imageData });
+        const res = await axios.post("http://localhost:5000/recognize", { image: imageData });
         const faces = res.data.faces;
 
         if (faces.length > 0) {
@@ -59,7 +61,9 @@ export default function HomePage() {
 
               setTimeout(() => {
                 setShowNotification(false);
-                videoRef.current.play();
+                videoRef.current.play().catch(e => {
+                  if (e.name !== 'AbortError') console.error('Video play error:', e);
+                });
               }, 1000);
             }
           });

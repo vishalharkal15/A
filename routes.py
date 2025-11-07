@@ -7,7 +7,7 @@ from flask import request, jsonify
 from PIL import Image
 from datetime import datetime, date, timedelta
 import numpy as np
-from database import Student
+from models import Student
 
 ADMIN_PATH = "data/admin.json"
 
@@ -141,9 +141,13 @@ def register_routes(app, db, Attendance, detector, embedder):
 
             faces = detector.detect_faces(np.array(image))
             if not faces:
-                return jsonify({"error": "No face detected"}), 400
+                return jsonify({"faces": []}), 200
             
             students = Student.query.all()
+            if not students:
+                print("[WARNING] No students enrolled in database")
+                return jsonify({"faces": []}), 200
+            
             student_embeddings = {
                 student.name: np.array(student.embedding) for student in students
             }
@@ -152,7 +156,7 @@ def register_routes(app, db, Attendance, detector, embedder):
             today = date.today().strftime("%Y-%m-%d")
             current_time = datetime.now().strftime("%H:%M:%S")
 
-            THRESHOLD = 0.1
+            THRESHOLD = 0.5
 
             for face in faces:
                 x, y, w, h = face["box"]

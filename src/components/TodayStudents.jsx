@@ -11,7 +11,7 @@ export default function TodayStudents() {
   useEffect(() => {
     const fetchTodayCount = async () => {
       try {
-        const res = await fetch("https://{Yout IP}:5000/api/students-today");
+        const res = await fetch("http://localhost:5000/api/students-today");
         const data = await res.json();
         setCount(data.count);
       } catch (err) {

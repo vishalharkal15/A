@@ -30,7 +30,7 @@ export default function WeeklyAttendance() {
   const fetchWeekData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`https://{Yout IP}:5000/api/weekly-attendance?offset=${weekOffset}`);
+      const res = await fetch(`http://localhost:5000/api/weekly-attendance?offset=${weekOffset}`);
       const result = await res.json();
       setLabels(result.dates || []); // fallback if empty
       setData(result.counts || []);
